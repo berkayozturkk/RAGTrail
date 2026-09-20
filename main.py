@@ -12,7 +12,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 
 load_dotenv()
 
-llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash", temperature=0.7)
+llm = ChatGoogleGenerativeAI(model="gemini-3.6-flash", temperature=0.7)
 
 loader = WebBaseLoader(web_paths=("https://lilianweng.github.io/posts/2023-06-23-agent/",))
 docs = loader.load()
@@ -23,8 +23,20 @@ vectorstore = Chroma.from_documents(documents=splits, embedding=GoogleGenerative
 
 retriever = vectorstore.as_retriever()
 
+prompt = hub.pull("rlm/rag-prompt")
+
+
 def format_docs(docs: list):
     return "\n".join(doc.page_content for doc in docs)
 
+rag_chain = (
+    {"context": retriever | format_docs, "question": RunnablePassthrough()}
+    | prompt
+    | llm
+    | StrOutputParser()
+)
+
+
 if __name__ == '__main__':
-    print(docs)
+    for chunk in rag_chain.stream("What is maximum inner product search?"):
+        print(chunk, flush=True, end="")
